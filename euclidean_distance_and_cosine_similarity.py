@@ -1,6 +1,6 @@
 import numpy as np
 
-def euclid_dist(a, b)
+def euclid_dist(a, b):
 	temp = a - b
 	euclid_dist = np.sqrt(np.dot(temp.T, temp))
 	return euclid_dist
