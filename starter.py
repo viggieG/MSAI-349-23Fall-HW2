@@ -43,12 +43,21 @@ def knn(train,query,metric):
     features_pca = pca.transform(train_features)
     query_pca = pca.transform(query_features)
     if metric == 'euclidean':
-        k_distances = []
+        k_labels = []
         for query_pca_obs in query_pca:
-            distances = [euclidean(query_pca_obs, train_pca_obs) for train_pca_obs in features_pca].sort()
-            sorted_dist = distances[:k]
-            k_distances.append(distances)
-        return k_distances
+            distances = [euclidean(query_pca_obs, train_pca_obs) for train_pca_obs in features_pca]
+            closest_idx = np.argsort(distances)[:k]
+            closest_labels = [labels[i] for i in closest_idx]
+            k_labels.append(closest_labels)
+        return k_labels
+    else:
+        k_labels = []
+        for query_pca_obs in query_pca:
+            distances = [cosim(query_pca_obs, train_pca_obs) for train_pca_obs in features_pca]
+            closest_idx = np.argsort(distances)[:k]
+            closest_labels = [labels[i] for i in closest_idx]
+            k_labels.append(closest_labels)
+        return k_labels
 
 # returns a list of labels for the query dataset based upon observations in the train dataset. 
 # labels should be ignored in the training set
