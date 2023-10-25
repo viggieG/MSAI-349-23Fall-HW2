@@ -42,6 +42,7 @@ def knn(train,query,metric):
     pca.fit(train_features)
     features_pca = pca.transform(train_features)
     query_pca = pca.transform(query_features)
+
     if metric == 'euclidean':
         k_labels = []
         for query_pca_obs in query_pca:
