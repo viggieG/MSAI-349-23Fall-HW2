@@ -18,7 +18,7 @@ def cosim(a,b):
 # metric is a string specifying either "euclidean" or "cosim".  
 # All hyper-parameters should be hard-coded in the algorithm.
 def knn(train,query,metric):
-        k = 45
+    k = 45
     #read in training data
     train_list = read_data(train)
     #read in query data
