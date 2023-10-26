@@ -4,15 +4,19 @@ import math
 
 # returns Euclidean distance between vectors a dn b
 def euclidean(a,b):
-    euclid_dist = round(np.sqrt(sum((a - b)^2)),2)
+    euclid_dist = round(np.sqrt(sum((a - b)**2)),2)
     return euclid_dist
         
 # returns Cosine Similarity between vectors a dn b
-def cosim(a,b):
+def cosim(a, b):
     dot_product = np.dot(a, b)
     norm_a = np.linalg.norm(a)
     norm_b = np.linalg.norm(b)
-    return round(dot_product / (norm_a * norm_b),2)
+    # Prevent division by zero
+    if norm_a == 0 or norm_b == 0:
+        return 0  # or whatever value you deem appropriate in this scenario
+    return dot_product / (norm_a * norm_b)
+
 
 # returns a list of labels for the query dataset based upon labeled observations in the train dataset.
 # metric is a string specifying either "euclidean" or "cosim".  
@@ -23,42 +27,88 @@ def knn(train,query,metric):
     train_list = read_data(train)
     #read in query data
     query_list = read_data(query)
+    
+    # Normalize the data
+    for i in range(len(train_list)):
+        train_list[i][1] = normalize_data(np.array(train_list[i][1]).astype(float))
+    for i in range(len(query_list)):
+        query_list[i][1] = normalize_data(np.array(query_list[i][1]).astype(float))
+        
+    labels = []
+    for q_item in query_list:
+        _, q_vector = q_item
+        distances = []
+        
+        for t_item in train_list:
+            t_label, t_vector = t_item
+            if metric == "cosim":
+                dist = 1 - distance(np.array(q_vector).astype(float), np.array(t_vector).astype(float), metric)
+            else:
+                dist = distance(np.array(q_vector).astype(float), np.array(t_vector).astype(float), metric)
+            distances.append((dist, t_label))
 
-    # extracting the training labels
-    labels = [observation[0] for observation in train_list]
-    # extracting the training and query feature vectors
-    train_features = np.array([observation[1:] for observation in train_list])
-    query_features = np.array([observation[1:] for observation in query_list])
+        # Sort based on distances and take top-k labels
+        sorted_distances = sorted(distances, key=lambda x: x[0])
+        top_k_labels = [item[1] for item in sorted_distances[:k]]
+        
+        # Determine the majority label among top-k labels
+        predicted_label = max(set(top_k_labels), key=top_k_labels.count)
+        labels.append(predicted_label)
+    
+    return labels
 
-    # calculate covariance matrix
-    cov_matrix = np.cov(train_features.T)
-    # calculate eigenvalues and eigenvectors
-    eigenvalues, eigenvectors = np.linalg.eig(cov_matrix)
-    # select components with eigenvalues greater than 1 based on Kaiser's Rule
-    n_comp = np.sum(eigenvalues > 1)
-    # initialize PCA with the selected number of component
-    pca = PCA(n_components = n_comp)
-    # fit PCA to the training dataset and transform the training dataset/query dataset
-    pca.fit(train_features)
-    features_pca = pca.transform(train_features)
-    query_pca = pca.transform(query_features)
+def knn_modified(train,query,metric,k):
+    #read in training data
+    train_list = read_data(train)
+    #read in query data
+    query_list = read_data(query)
+    
+    # Normalize the data
+    for i in range(len(train_list)):
+        train_list[i][1] = normalize_data(np.array(train_list[i][1]).astype(float))
+    for i in range(len(query_list)):
+        query_list[i][1] = normalize_data(np.array(query_list[i][1]).astype(float))
+        
+    labels = []
+    for q_item in query_list:
+        _, q_vector = q_item
+        distances = []
+        
+        for t_item in train_list:
+            t_label, t_vector = t_item
+            if metric == "cosim":
+                dist = 1 - distance(np.array(q_vector).astype(float), np.array(t_vector).astype(float), metric)
+            else:
+                dist = distance(np.array(q_vector).astype(float), np.array(t_vector).astype(float), metric)
+            distances.append((dist, t_label))
 
-    if metric == 'euclidean':
-        k_labels = []
-        for query_pca_obs in query_pca:
-            distances = [euclidean(query_pca_obs, train_pca_obs) for train_pca_obs in features_pca]
-            closest_idx = np.argsort(distances)[:k]
-            closest_labels = [labels[i] for i in closest_idx]
-            k_labels.append(closest_labels)
-        return k_labels
+        # Sort based on distances and take top-k labels
+        sorted_distances = sorted(distances, key=lambda x: x[0])
+        top_k_labels = [item[1] for item in sorted_distances[:k]]
+        
+        # Determine the majority label among top-k labels
+        predicted_label = max(set(top_k_labels), key=top_k_labels.count)
+        labels.append(predicted_label)
+    
+    return labels
+
+
+def distance(a, b, metric):
+    if metric == "euclidean":
+        return euclidean(a, b)
+    elif metric == "cosim":
+        return cosim(a, b)
     else:
-        k_labels = []
-        for query_pca_obs in query_pca:
-            distances = [cosim(query_pca_obs, train_pca_obs) for train_pca_obs in features_pca]
-            closest_idx = np.argsort(distances)[:k]
-            closest_labels = [labels[i] for i in closest_idx]
-            k_labels.append(closest_labels)
-        return k_labels
+        raise ValueError(f"Unknown metric: {metric}")
+
+def normalize_data(data):
+    if len(data.shape) == 1:  # Check if data is 1D
+        norm = np.linalg.norm(data, keepdims=True)
+    else:
+        norm = np.linalg.norm(data, axis=1, keepdims=True)
+    return data/norm
+
+
 
 # returns a list of labels for the query dataset based upon observations in the train dataset. 
 # labels should be ignored in the training set
@@ -97,10 +147,59 @@ def show(file_name,mode):
                 print(' ')
         print('LABEL: %s' % data_set[obs][0],end='')
         print(' ')
-            
-def main():
-    show('valid.csv','pixels')
+
+def knn_accuracy(train, test, metric):
+    # Use your knn function to get predictions on the test set
+    predictions = knn(train, test, metric)
+
+    # Read in the true labels from the test set
+    true_labels = [item[0] for item in read_data(test)]
+
+    # Compare predictions to true labels to compute accuracy
+    correct_predictions = sum([1 for predicted, true in zip(predictions, true_labels) if predicted == true])
+    accuracy = correct_predictions / len(true_labels)
+
+    return accuracy
+
+
+def evaluate_knn_with_validation(train_file, valid_file, metric, k_values):
+    k_accuracies = {}
     
+    for k in k_values:
+        predictions = knn_modified(train_file, valid_file, metric,k)
+        
+        # Read the true labels from the validation file
+        validation_data = read_data(valid_file)
+        true_labels = [row[0] for row in validation_data]  # Assuming the label is the first column
+        
+        accuracy = sum(1 for p, t in zip(predictions, true_labels) if p == t) / len(predictions)
+        k_accuracies[k] = accuracy
+
+        # Print the current k and its accuracy
+        print(f"Accuracy for k = {k}: {accuracy:.2f} with {metric}")
+        
+    best_k = max(k_accuracies, key=k_accuracies.get)
+    best_accuracy = k_accuracies[best_k]
+    return best_k, best_accuracy
+
+
+def main():
+    # show('valid.csv','pixels')
+    # knn('train.csv','valid.csv','euclidean')
+    # knn_accuracy('train.csv','valid.csv','euclidean')
+    # knn_accuracy('train.csv','valid.csv','cosim')
+    
+    k_values = list(range(1, 51,5))
+    best_k, best_accuracy = evaluate_knn_with_validation('train.csv', 'valid.csv', 'euclidean', k_values)
+    print(f"Best k for Euclidean: {best_k} with accuracy: {best_accuracy:.2f}")
+
+    best_k, best_accuracy = evaluate_knn_with_validation('train.csv', 'valid.csv', 'cosim', k_values)
+    print(f"Best k for Cosine Similarity: {best_k} with accuracy: {best_accuracy:.2f}")
+    
+    # best_k, best_accuracy = cross_validation_knn('train.csv', 'euclidean', k_values)
+    # print(f"Best k for Euclidean: {best_k} with Accuracy: {best_accuracy*100:.2f}%")
+    
+    # best_k, best_accuracy = cross_validation_knn('train.csv', 'cosim', k_values)
+    # print(f"Best k for Cosine Similarity: {best_k} with Accuracy: {best_accuracy*100:.2f}%")
 if __name__ == "__main__":
     main()
-    

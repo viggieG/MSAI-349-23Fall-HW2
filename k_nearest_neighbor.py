@@ -1,5 +1,7 @@
 import numpy as np 
 from .distances import euclidean_distances, manhattan_distances
+from sklearn.decomposition import PCA
+from scipy.stats import mode
 
 class KNearestNeighbor():    
     def __init__(self, n_neighbors, distance_measure='euclidean', aggregator='mode'):
@@ -41,8 +43,9 @@ class KNearestNeighbor():
                 neighbors. Can be one of 'mode', 'mean', or 'median'.
         """
         self.n_neighbors = n_neighbors
-
-        raise NotImplementedError()
+        self.distance_measure = distance_measure
+        self.aggregator = aggregator
+        self.pca = PCA(n_components=0.95)  # (Retain 95% variance) Sometimes reducing dimensions with PCA can improve performance by removing noise.
 
 
     def fit(self, features, targets):
@@ -57,8 +60,10 @@ class KNearestNeighbor():
             targets {[type]} -- Target labels for each data point, shape of (n_samples, 
                 n_dimensions).
         """
-
-        raise NotImplementedError()
+        self.features = features
+        self.targets = targets
+        # Fit PCA on training features
+        self.pca.fit(self.features)
         
 
     def predict(self, features, ignore_first=False):
@@ -83,4 +88,36 @@ class KNearestNeighbor():
             labels {np.ndarray} -- Labels for each data point, of shape (n_samples,
                 n_dimensions). This n_dimensions should be the same as n_dimensions of targets in fit function.
         """
-        raise NotImplementedError()
+        # Apply PCA transformation
+        query_features = self.pca.transform(query_features)
+        self.features = self.pca.transform(self.features)
+        
+        # Distance computation
+        if self.distance_measure == 'euclidean':
+            distances = euclidean_distances(query_features, self.features)
+        elif self.distance_measure == 'manhattan':
+            distances = manhattan_distances(query_features, self.features)
+        else:
+            raise ValueError(f"Unknown distance measure: {self.distance_measure}")
+
+        # Sorting indices based on distances
+        sorted_indices = np.argsort(distances, axis=1)
+
+        # Getting the k-nearest neighbors
+        k_nearest_indices = sorted_indices[:, :self.n_neighbors]
+        
+        # Extracting labels of k-nearest neighbors
+        k_nearest_labels = self.targets[k_nearest_indices]
+
+        # Aggregating labels
+        if self.aggregator == 'mean':
+            aggregated_labels = np.mean(k_nearest_labels, axis=1)
+        elif self.aggregator == 'mode':
+            mode_vals = mode(k_nearest_labels, axis=1)
+            aggregated_labels = mode_vals.mode.squeeze()
+        elif self.aggregator == 'median':
+            aggregated_labels = np.median(k_nearest_labels, axis=1)
+        else:
+            raise ValueError(f"Unknown aggregator: {self.aggregator}")
+        
+        return aggregated_labels
