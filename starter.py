@@ -22,7 +22,7 @@ def cosim(a, b):
 # metric is a string specifying either "euclidean" or "cosim".  
 # All hyper-parameters should be hard-coded in the algorithm.
 def knn(train,query,metric):
-    k = 45
+    k = 1
     #read in training data
     train_list = read_data(train)
     #read in query data
@@ -158,7 +158,7 @@ def knn_accuracy(train, test, metric):
     # Compare predictions to true labels to compute accuracy
     correct_predictions = sum([1 for predicted, true in zip(predictions, true_labels) if predicted == true])
     accuracy = correct_predictions / len(true_labels)
-
+    print(f'KNN Accuracy {accuracy:.2f} with {metric}')
     return accuracy
 
 
@@ -186,20 +186,25 @@ def evaluate_knn_with_validation(train_file, valid_file, metric, k_values):
 def main():
     # show('valid.csv','pixels')
     # knn('train.csv','valid.csv','euclidean')
-    # knn_accuracy('train.csv','valid.csv','euclidean')
-    # knn_accuracy('train.csv','valid.csv','cosim')
+    knn_accuracy('train.csv','test.csv','euclidean')
+    knn_accuracy('train.csv','test.csv','cosim')
     
-    k_values = list(range(1, 51,5))
-    best_k, best_accuracy = evaluate_knn_with_validation('train.csv', 'valid.csv', 'euclidean', k_values)
-    print(f"Best k for Euclidean: {best_k} with accuracy: {best_accuracy:.2f}")
+    # k_values = list(range(1, 51,5))
+    # best_k, best_accuracy = evaluate_knn_with_validation('train.csv', 'valid.csv', 'euclidean', k_values)
+    # print(f"Best k for Euclidean: {best_k} with accuracy: {best_accuracy:.2f}")
 
-    best_k, best_accuracy = evaluate_knn_with_validation('train.csv', 'valid.csv', 'cosim', k_values)
-    print(f"Best k for Cosine Similarity: {best_k} with accuracy: {best_accuracy:.2f}")
+    # best_k, best_accuracy = evaluate_knn_with_validation('train.csv', 'valid.csv', 'cosim', k_values)
+    # print(f"Best k for Cosine Similarity: {best_k} with accuracy: {best_accuracy:.2f}")
     
-    # best_k, best_accuracy = cross_validation_knn('train.csv', 'euclidean', k_values)
-    # print(f"Best k for Euclidean: {best_k} with Accuracy: {best_accuracy*100:.2f}%")
-    
-    # best_k, best_accuracy = cross_validation_knn('train.csv', 'cosim', k_values)
-    # print(f"Best k for Cosine Similarity: {best_k} with Accuracy: {best_accuracy*100:.2f}%")
 if __name__ == "__main__":
     main()
+    
+'''
+with validation set
+Best k for Euclidean: 1 with accuracy: 0.86
+Best k for Cosine Similarity: 1 with accuracy: 0.86
+
+with test set
+KNN Accuracy 0.92 with euclidean
+KNN Accuracy 0.92 with cosim
+'''
