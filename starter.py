@@ -186,15 +186,15 @@ def evaluate_knn_with_validation(train_file, valid_file, metric, k_values):
 def main():
     # show('valid.csv','pixels')
     # knn('train.csv','valid.csv','euclidean')
-    knn_accuracy('train.csv','test.csv','euclidean')
-    knn_accuracy('train.csv','test.csv','cosim')
+    # knn_accuracy('train.csv','test.csv','euclidean')
+    # knn_accuracy('train.csv','test.csv','cosim')
     
-    # k_values = list(range(1, 51,5))
-    # best_k, best_accuracy = evaluate_knn_with_validation('train.csv', 'valid.csv', 'euclidean', k_values)
-    # print(f"Best k for Euclidean: {best_k} with accuracy: {best_accuracy:.2f}")
+    k_values = list(range(1, 51,5))
+    best_k, best_accuracy = evaluate_knn_with_validation('train.csv', 'valid.csv', 'euclidean', k_values)
+    print(f"Best k for Euclidean: {best_k} with accuracy: {best_accuracy:.2f}")
 
-    # best_k, best_accuracy = evaluate_knn_with_validation('train.csv', 'valid.csv', 'cosim', k_values)
-    # print(f"Best k for Cosine Similarity: {best_k} with accuracy: {best_accuracy:.2f}")
+    best_k, best_accuracy = evaluate_knn_with_validation('train.csv', 'valid.csv', 'cosim', k_values)
+    print(f"Best k for Cosine Similarity: {best_k} with accuracy: {best_accuracy:.2f}")
     
 if __name__ == "__main__":
     main()

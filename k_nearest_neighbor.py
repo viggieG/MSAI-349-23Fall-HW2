@@ -45,7 +45,7 @@ class KNearestNeighbor():
         self.n_neighbors = n_neighbors
         self.distance_measure = distance_measure
         self.aggregator = aggregator
-        self.pca = PCA(n_components=0.95)  # (Retain 95% variance) Sometimes reducing dimensions with PCA can improve performance by removing noise.
+        self.pca = PCA(n_components=None)  # (Retain 95% variance) Sometimes reducing dimensions with PCA can improve performance by removing noise.
 
 
     def fit(self, features, targets):
