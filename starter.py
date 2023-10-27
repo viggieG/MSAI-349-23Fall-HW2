@@ -12,86 +12,10 @@ def cosim(a, b):
     dot_product = np.dot(a, b)
     norm_a = np.linalg.norm(a)
     norm_b = np.linalg.norm(b)
-    # Prevent division by zero
+    # prevent division by zero
     if norm_a == 0 or norm_b == 0:
-        return 0  # or whatever value you deem appropriate in this scenario
+        return 0 
     return dot_product / (norm_a * norm_b)
-
-
-# returns a list of labels for the query dataset based upon labeled observations in the train dataset.
-# metric is a string specifying either "euclidean" or "cosim".  
-# All hyper-parameters should be hard-coded in the algorithm.
-def knn(train,query,metric):
-    k = 1
-    #read in training data
-    train_list = read_data(train)
-    #read in query data
-    query_list = read_data(query)
-    
-    # Normalize the data
-    for i in range(len(train_list)):
-        train_list[i][1] = normalize_data(np.array(train_list[i][1]).astype(float))
-    for i in range(len(query_list)):
-        query_list[i][1] = normalize_data(np.array(query_list[i][1]).astype(float))
-        
-    labels = []
-    for q_item in query_list:
-        _, q_vector = q_item
-        distances = []
-        
-        for t_item in train_list:
-            t_label, t_vector = t_item
-            if metric == "cosim":
-                dist = 1 - distance(np.array(q_vector).astype(float), np.array(t_vector).astype(float), metric)
-            else:
-                dist = distance(np.array(q_vector).astype(float), np.array(t_vector).astype(float), metric)
-            distances.append((dist, t_label))
-
-        # Sort based on distances and take top-k labels
-        sorted_distances = sorted(distances, key=lambda x: x[0])
-        top_k_labels = [item[1] for item in sorted_distances[:k]]
-        
-        # Determine the majority label among top-k labels
-        predicted_label = max(set(top_k_labels), key=top_k_labels.count)
-        labels.append(predicted_label)
-    
-    return labels
-
-def knn_modified(train,query,metric,k):
-    #read in training data
-    train_list = read_data(train)
-    #read in query data
-    query_list = read_data(query)
-    
-    # Normalize the data
-    for i in range(len(train_list)):
-        train_list[i][1] = normalize_data(np.array(train_list[i][1]).astype(float))
-    for i in range(len(query_list)):
-        query_list[i][1] = normalize_data(np.array(query_list[i][1]).astype(float))
-        
-    labels = []
-    for q_item in query_list:
-        _, q_vector = q_item
-        distances = []
-        
-        for t_item in train_list:
-            t_label, t_vector = t_item
-            if metric == "cosim":
-                dist = 1 - distance(np.array(q_vector).astype(float), np.array(t_vector).astype(float), metric)
-            else:
-                dist = distance(np.array(q_vector).astype(float), np.array(t_vector).astype(float), metric)
-            distances.append((dist, t_label))
-
-        # Sort based on distances and take top-k labels
-        sorted_distances = sorted(distances, key=lambda x: x[0])
-        top_k_labels = [item[1] for item in sorted_distances[:k]]
-        
-        # Determine the majority label among top-k labels
-        predicted_label = max(set(top_k_labels), key=top_k_labels.count)
-        labels.append(predicted_label)
-    
-    return labels
-
 
 def distance(a, b, metric):
     if metric == "euclidean":
@@ -108,7 +32,44 @@ def normalize_data(data):
         norm = np.linalg.norm(data, axis=1, keepdims=True)
     return data/norm
 
+# returns a list of labels for the query dataset based upon labeled observations in the train dataset.
+# metric is a string specifying either "euclidean" or "cosim".  
+# All hyper-parameters should be hard-coded in the algorithm.
+def knn(train,query,metric):
+    k = 1
+    #read in training data
+    train_list = read_data(train)
+    #read in query data
+    query_list = read_data(query)
+    
+    # normalize the data
+    for i in range(len(train_list)):
+        train_list[i][1] = normalize_data(np.array(train_list[i][1]).astype(float))
+    for i in range(len(query_list)):
+        query_list[i][1] = normalize_data(np.array(query_list[i][1]).astype(float))
+        
+    labels = []
+    for q_item in query_list:
+        _, q_vector = q_item
+        distances = []
+        
+        for t_item in train_list:
+            t_label, t_vector = t_item
+            if metric == "cosim":
+                dist = 1 - distance(np.array(q_vector).astype(float), np.array(t_vector).astype(float), metric)
+            else:
+                dist = distance(np.array(q_vector).astype(float), np.array(t_vector).astype(float), metric)
+            distances.append((dist, t_label))
 
+        # sort based on distances and take top-k labels
+        sorted_distances = sorted(distances, key=lambda x: x[0])
+        top_k_labels = [item[1] for item in sorted_distances[:k]]
+        
+        # determine the majority label among top-k labels
+        predicted_label = max(set(top_k_labels), key=top_k_labels.count)
+        labels.append(predicted_label)
+    
+    return labels
 
 # returns a list of labels for the query dataset based upon observations in the train dataset. 
 # labels should be ignored in the training set
@@ -168,14 +129,14 @@ def evaluate_knn_with_validation(train_file, valid_file, metric, k_values):
     for k in k_values:
         predictions = knn_modified(train_file, valid_file, metric,k)
         
-        # Read the true labels from the validation file
+        # read the true labels from the validation file
         validation_data = read_data(valid_file)
-        true_labels = [row[0] for row in validation_data]  # Assuming the label is the first column
+        true_labels = [row[0] for row in validation_data] 
         
         accuracy = sum(1 for p, t in zip(predictions, true_labels) if p == t) / len(predictions)
         k_accuracies[k] = accuracy
 
-        # Print the current k and its accuracy
+        # print the current k and its accuracy
         print(f"Accuracy for k = {k}: {accuracy:.2f} with {metric}")
         
     best_k = max(k_accuracies, key=k_accuracies.get)
