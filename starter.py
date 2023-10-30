@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-import matplotlib
+import matplotlib.pyplot as plt
 
 # returns Euclidean distance between vectors a dn b
 def euclidean(a,b):
@@ -121,8 +121,13 @@ def knn_accuracy(train, test, metric):
     correct_predictions = sum([1 for predicted, true in zip(predictions, true_labels) if predicted == true])
     accuracy = correct_predictions / len(true_labels)
     print(f'KNN Accuracy {accuracy:.2f} with {metric}')
+    
     cm = confusion_matrix(true_labels, predictions)
     disp = ConfusionMatrixDisplay(cm)
+    disp.plot()
+    plt.title(f'Confusion Matrix ({metric} with {test})')
+    plt.savefig(f'confusion_matrix_{metric}_test.png')
+    
     return accuracy
 
 
@@ -163,12 +168,4 @@ def main():
 if __name__ == "__main__":
     main()
     
-'''
-with validation set
-Best k for Euclidean: 1 with accuracy: 0.86
-Best k for Cosine Similarity: 1 with accuracy: 0.86
 
-with test set
-KNN Accuracy 0.92 with euclidean
-KNN Accuracy 0.92 with cosim
-'''
