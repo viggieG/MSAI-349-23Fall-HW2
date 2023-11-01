@@ -2,6 +2,8 @@ import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
+from collections import Counter
+from sklearn.manifold import TSNE
 
 # returns Euclidean distance between vectors a dn b
 def euclidean(a,b):
@@ -71,13 +73,6 @@ def knn(train,query,metric):
         labels.append(predicted_label)
     
     return labels
-
-# returns a list of labels for the query dataset based upon observations in the train dataset. 
-# labels should be ignored in the training set
-# metric is a string specifying either "euclidean" or "cosim".  
-# All hyper-parameters should be hard-coded in the algorithm.
-def kmeans(train,query,metric):
-    return(labels)
 
 def read_data(file_name):
     
@@ -186,6 +181,146 @@ def knn_modified(train,query,metric,k):
     
     return labels
 
+def reduce_dimensionality(data, n_components=40):
+    pca = PCA(n_components=n_components)
+    return pca.fit_transform(data)
+
+# returns a list of labels for the query dataset based upon observations in the train dataset. 
+# labels should be ignored in the training set
+# metric is a string specifying either "euclidean" or "cosim".  
+# All hyper-parameters should be hard-coded in the algorithm.
+def kmeans(train, query, metric, k, max_iterations=100, tolerance=1e-4,tsne_components=2):
+    def normalize_data(data):
+        return (data - np.min(data)) / (np.max(data) - np.min(data))
+
+    def euclidean_distance(p1, p2):
+        return np.sqrt(np.sum((np.array(p1) - np.array(p2)) ** 2))
+
+    def initialize_centroids_plusplus(data, k):
+        centroids = [data[np.random.choice(len(data))]]
+        for _ in range(1, k):
+            dist_sq = np.array([min([euclidean_distance(c, x) for c in centroids]) for x in data])
+            probs = dist_sq / dist_sq.sum()
+            cumulative_probs = probs.cumsum()
+            r = np.random.rand()
+            for j, p in enumerate(cumulative_probs):
+                if r < p:
+                    i = j
+                    break
+            centroids.append(data[i])
+        return centroids
+
+    def closest_centroid(sample, centroids):
+        distances = [euclidean_distance(sample, centroid) for centroid in centroids]
+        return np.argmin(distances)
+
+    # Read in training data and query data
+    train_list = read_data(train)
+    query_list = read_data(query)
+    train_labels = [item[0] for item in train_list]
+    train_data = [item[1] for item in train_list]
+    query_labels = [item[0] for item in query_list]
+    query_data = [item[1] for item in query_list]
+
+    # Normalize data
+    train_data = [normalize_data(np.array(item).astype(float)) for item in train_data]
+    query_data = [normalize_data(np.array(item).astype(float)) for item in query_data]
+
+    def apply_tsne(train_data, query_data, tsne_components=2):
+        # Combine train and query data
+        combined_data = np.vstack([train_data, query_data])
+
+        # Apply t-SNE
+        tsne = TSNE(n_components=2, random_state=42, init='random', learning_rate=200.0)
+        combined_data_tsne = tsne.fit_transform(combined_data)
+
+        # Separate the transformed train and query data
+        train_data_tsne = combined_data_tsne[:len(train_data)]
+        query_data_tsne = combined_data_tsne[len(train_data):]
+
+        return train_data_tsne, query_data_tsne
+
+    # Then in your kmeans function:
+    train_data_tsne, query_data_tsne = apply_tsne(train_data, query_data)
+
+
+    # Initialize centroids using K-means++
+    centroids = initialize_centroids_plusplus(train_data_tsne, k)  # 注意使用 t-SNE 转换后的数据
+    old_centroids = centroids.copy()
+
+
+    for _ in range(max_iterations):
+        # Assign samples to closest centroids (create clusters)
+        clusters = [[] for _ in range(k)]
+        for idx, sample in enumerate(train_data_tsne):
+            centroid_idx = closest_centroid(sample, centroids)
+            clusters[centroid_idx].append((sample, train_labels[idx]))
+
+        # Calculate new centroids from clusters
+        for idx, cluster in enumerate(clusters):
+            if cluster:  # check if cluster is not empty
+                average = np.mean([item[0] for item in cluster], axis=0)
+                centroids[idx] = average.tolist()
+
+        # Check convergence
+        diff = sum([np.linalg.norm(np.array(centroids[i]) - np.array(old_centroids[i])) for i in range(k)])
+        if diff <= tolerance:
+            break
+        old_centroids = centroids.copy()
+
+    # For each cluster, determine the dominant label
+    dominant_labels = []
+    for cluster in clusters:
+        labels = [item[1] for item in cluster]
+        dominant_label = Counter(labels).most_common(1)[0][0]
+        dominant_labels.append(dominant_label)
+
+    # Predict the labels for query data
+    predictions = []
+    for sample in query_data_tsne:
+        centroid_idx = closest_centroid(sample, centroids)
+        predictions.append(dominant_labels[centroid_idx])
+
+    return predictions
+
+def kmeans_accuracy(train, query, metric, k, max_iterations=100,tsne_components=2):
+    predictions = kmeans(train, query, metric, k, max_iterations,tsne_components=2)
+
+    query_list = read_data(query)
+    query_labels = [item[0] for item in query_list]
+
+    correct_predictions = sum(p == q for p, q in zip(predictions, query_labels))
+    accuracy = correct_predictions / len(query_labels)
+    print(f'Kmeans Accuracy {accuracy:.2f} with {metric}')
+    cm = confusion_matrix(query_labels, predictions)
+    disp = ConfusionMatrixDisplay(cm)
+    # Display the confusion matrix
+    fig, ax = plt.subplots(figsize=(8, 6))
+    disp.plot(cmap=plt.cm.Blues, ax=ax)
+    plt.savefig(f'confusion_matrix_kmeans_{metric}_test.png')
+
+    return accuracy
+
+def evaluate_kmeans_with_validation(train_file, valid_file, metric, k_values):
+    k_accuracies = {}
+
+    for k in k_values:
+        #predictions = kmeans_modified(train_file, valid_file, metric, k)
+        predictions = kmeans(train_file, valid_file, metric, k, max_iterations=100,tsne_components=2)
+
+        # read the true labels from the validation file
+        validation_data = read_data(valid_file)
+        true_labels = [row[0] for row in validation_data]
+
+        accuracy = sum(1 for p, t in zip(predictions, true_labels) if p == t) / len(predictions)
+        k_accuracies[k] = accuracy
+
+        # print the current k and its accuracy
+        print(f"Accuracy for k = {k}: {accuracy:.2f} with {metric}")
+
+    best_k = max(k_accuracies, key=k_accuracies.get)
+    best_accuracy = k_accuracies[best_k]
+    return best_k, best_accuracy
 
 def main():
     # show('valid.csv','pixels')
@@ -199,6 +334,10 @@ def main():
 
     # best_k, best_accuracy = evaluate_knn_with_validation('train.csv', 'valid.csv', 'cosim', k_values)
     # print(f"Best k for Cosine Similarity: {best_k} with accuracy: {best_accuracy:.2f}")
+    kmeans_cosim = kmeans_accuracy('train.csv', 'test.csv', 'cosim', k=31, max_iterations=100)
+    print(f"KMeans accuracy: {kmeans_cosim:.2f}")
+    kmeans_euclidean = kmeans_accuracy('train.csv', 'test.csv', 'euclidean', k=41, max_iterations=100)
+    print(f"KMeans accuracy: {kmeans_euclidean:.2f}")
     
 if __name__ == "__main__":
     main()

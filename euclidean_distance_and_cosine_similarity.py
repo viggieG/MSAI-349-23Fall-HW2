@@ -10,3 +10,6 @@ def cosine_similarity(a, b):
 	norm_a = np.linalg.norm(a)
 	norm_b = np.linalg.norm(b)
 	return dot_product / (norm_a * norm_b)
+
+def manhattan_distance(a, b):
+    return np.sum(np.abs(a - b))
