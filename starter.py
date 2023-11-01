@@ -151,6 +151,41 @@ def evaluate_knn_with_validation(train_file, valid_file, metric, k_values):
     best_accuracy = k_accuracies[best_k]
     return best_k, best_accuracy
 
+def knn_modified(train,query,metric,k):
+    #read in training data
+    train_list = read_data(train)
+    #read in query data
+    query_list = read_data(query)
+    
+    # Normalize the data
+    for i in range(len(train_list)):
+        train_list[i][1] = normalize_data(np.array(train_list[i][1]).astype(float))
+    for i in range(len(query_list)):
+        query_list[i][1] = normalize_data(np.array(query_list[i][1]).astype(float))
+        
+    labels = []
+    for q_item in query_list:
+        _, q_vector = q_item
+        distances = []
+        
+        for t_item in train_list:
+            t_label, t_vector = t_item
+            if metric == "cosim":
+                dist = 1 - distance(np.array(q_vector).astype(float), np.array(t_vector).astype(float), metric)
+            else:
+                dist = distance(np.array(q_vector).astype(float), np.array(t_vector).astype(float), metric)
+            distances.append((dist, t_label))
+
+        # Sort based on distances and take top-k labels
+        sorted_distances = sorted(distances, key=lambda x: x[0])
+        top_k_labels = [item[1] for item in sorted_distances[:k]]
+        
+        # Determine the majority label among top-k labels
+        predicted_label = max(set(top_k_labels), key=top_k_labels.count)
+        labels.append(predicted_label)
+    
+    return labels
+
 
 def main():
     # show('valid.csv','pixels')
